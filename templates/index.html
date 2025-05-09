@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat with TinyLLaMA</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 2rem;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #chat {
+      border: 1px solid #ccc;
+      background: var(--chat-bg);
+      padding: 1rem;
+      min-height: 300px;
+      max-height: 70vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      padding: 0.5rem 1rem;
+      border-radius: 12px;
+      margin: 0.5rem 0;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+
+    .user {
+      background-color: var(--user-bg);
+      align-self: flex-start;
+      text-align: left;
+    }
+
+    .bot {
+      background-color: var(--bot-bg);
+      align-self: flex-start;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 40px;
+      resize: none;
+      overflow: hidden;
+      font-size: 1rem;
+      padding: 0.5rem;
+      box-sizing: border-box;
+      background: var(--input-bg);
+      color: var(--text-color);
+      border: 1px solid #ccc;
+    }
+
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      align-self: flex-end;
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      cursor: pointer;
+    }
+
+    #toggle-theme {
+      align-self: flex-end;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    :root {
+      --chat-bg: #fff;
+      --user-bg: #dcf8c6;
+      --bot-bg: #f1f0f0;
+      --input-bg: #fff;
+      --text-color: #000;
+      --button-bg: #e0e0e0;
+      --button-text: #000;
+      --body-bg: #f9f9f9;
+    }
+
+    body.light {
+      background: var(--body-bg);
+      color: var(--text-color);
+    }
+
+    body.dark {
+      background: #121212;
+      color: #f0f0f0;
+    }
+
+    body.dark {
+      --chat-bg: #1e1e1e;
+      --user-bg: #29434e;
+      --bot-bg: #2c2c2c;
+      --input-bg: #1e1e1e;
+      --text-color: #f0f0f0;
+      --button-bg: #333;
+      --button-text: #fff;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .top-bar span {
+      font-weight: bold;
+    }
+
+    .top-bar a {
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    code {
+      background-color: #f5f5f5;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    pre code {
+      display: block;
+      background-color: #272822;
+      color: #f8f8f2;
+      padding: 1em;
+      overflow-x: auto;
+      border-radius: 8px;
+    }
+    
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="top-bar">
+      <span>Hello, {{ username }}</span>
+      <div>
+        <button id="toggle-theme" title="Toggle theme">🌙</button>
+        <a href="/logout">(Logout)</a>
+      </div>
+    </div>
+    <h1>Chat with TinyLLaMA</h1>
+    <div id="chat"></div>
+    <textarea id="input" placeholder="Say something..."></textarea>
+    <button onclick="send()">Send</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.3/dist/purify.min.js"></script>
+  
+  <script>
+    const input = document.getElementById('input');
+    const chat = document.getElementById('chat');
+    const themeButton = document.getElementById('toggle-theme');
+
+    input.focus();
+
+    function send() {
+      const message = input.value.trim();
+      if (message === "") return;
+
+      chat.innerHTML += `<div class="message user"><b>You:</b> ${message}</div>`;
+
+      scrollToBottom();
+      input.value = '';
+      input.style.height = 'auto';
+
+      fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      })
+      .then(res => res.json()).then(data => {
+        const rawHtml = marked.parse(data.reply);
+        const safeHtml = DOMPurify.sanitize(rawHtml);
+        chat.innerHTML += `<div class="message bot">${safeHtml}</div>`;
+        scrollToBottom();
+      })  
+      .catch(err => {
+        console.error("Chat error:", err);
+        chat.innerHTML += `<div class="message bot error">Error: ${err.message}</div>`;
+      });
+    }
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    input.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+    });
+
+    function scrollToBottom() {
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Dark mode toggle with icon
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.body.classList.add('dark');
+      themeButton.textContent = '☀️';
+    } else {
+      document.body.classList.add('light');
+      themeButton.textContent = '🌙';
+    }
+
+    themeButton.addEventListener('click', () => {
+      const isDark = document.body.classList.contains('dark');
+      document.body.classList.toggle('dark', !isDark);
+      document.body.classList.toggle('light', isDark);
+      themeButton.textContent = isDark ? '🌙' : '☀️';
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    });
+  </script>
+</body>
+</html>

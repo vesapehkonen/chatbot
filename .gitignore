@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Model files
+*.gguf
+/mnt/models/
+/models/
+
+# Local config or credentials
+*.env
+chat_memory.json
